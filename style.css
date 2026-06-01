@@ -1,0 +1,631 @@
+/* 树洞自律小刺猬 Web 1.0
+ * 阶段 2.2：首页像素级还原基础样式
+ * 基准画布：1440px * 900px（详见 arch.md 第 3 节）
+ */
+
+:root {
+  --canvas-w: 1440px;
+  --canvas-h: 900px;
+
+  --fallback-forest: #3a4733;
+
+  --font-hand: "Comic Sans MS", "KaiTi", "楷体", cursive, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--fallback-forest);
+  font-family: var(--font-hand);
+  overflow: hidden; /* 超出画布部分隐藏（避免滚动条） */
+}
+
+/* JS 被禁用时的提示 */
+.noscript {
+  width: var(--canvas-w);
+  margin: 24px auto;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+  text-align: center;
+}
+
+/* =========================
+   画布与多状态容器
+   ========================= */
+
+#app {
+  width: 100%;
+}
+
+.state {
+  width: var(--canvas-w);
+  height: var(--canvas-h);
+  position: relative;
+  margin: 0 auto;
+  overflow: hidden;
+  display: none; /* 默认隐藏：由状态机显隐 */
+  opacity: 1;
+  transition: opacity 320ms ease;
+  z-index: 1; /* 兜底：状态容器分层 */
+}
+
+#home-state {
+  display: block; /* 默认展示首页 */
+  z-index: 1;
+}
+
+#zen-state {
+  z-index: 10; /* 兜底：确保禅定页覆盖首页残余元素 */
+}
+
+#mailbox-state {
+  z-index: 5;
+}
+
+.state.is-fade-out {
+  opacity: 0;
+}
+
+/* =========================
+   视频背景（最底层）
+   ========================= */
+
+.bg-video {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none; /* 绝不遮挡任何点击区域 */
+  background: var(--fallback-forest);
+}
+
+/* 视频异常：露出森林绿防御底色（PRD 5.1） */
+.video-error .bg-video {
+  display: none;
+}
+
+/* 视频异常时，使用 poster 静态图平替（PRD 5.1） */
+.video-error #home-state {
+  background-image: url("assets/images/poster-home.jpg");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
+.video-error #zen-state {
+  background-image: url("assets/images/poster-zen.jpg");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
+/* =========================
+   UI 控件通用规则
+   ========================= */
+
+.ui {
+  position: absolute;
+  z-index: 2;
+}
+
+/* 容器内所有 <img> 统一防拉伸（禁止变形） */
+.state img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+}
+
+/* 彻底清除 button 默认样式（透明 + 无边框 + 无内外边距 + 无阴影） */
+button {
+  font-family: inherit;
+  color: inherit;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0;
+  outline: none;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+button:focus {
+  outline: none;
+}
+
+/* =========================
+   首页像素级定位（arch.md 3）
+   ========================= */
+
+/* 首页 - 时间轴画布锚点：W 809 H 166 @ X 316 Y 52 */
+.ui-timeline-anchor {
+  position: absolute;
+  left: 21.9444%; /* 316 / 1440 */
+  top: 5.7778%; /* 52 / 900 */
+  width: 56.1806%; /* 809 / 1440 */
+  max-width: 809px;
+  z-index: 2;
+}
+
+/* 木桩相对父容器：等比缩放，数字百分比以此为基准 */
+.timeline-container,
+#home-timeline.timeline-container {
+  position: relative;
+  width: 100%;
+  max-width: 809px;
+  aspect-ratio: 809 / 166;
+  height: auto;
+  container-type: inline-size;
+}
+
+/* 木桩背景铺满容器，与 aspect-ratio 同步缩放 */
+#home-timeline.timeline-container .timeline-container__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+/* 时间轴数字层：相对木桩容器 100% 覆盖 */
+.home-time-buttons {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* 时间轴数字：PS 左上角锚点（无 transform，无固定宽高盒） */
+.home-time-btn {
+  position: absolute;
+  z-index: 3;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0 !important;
+  display: block;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: auto;
+  font-size: clamp(18px, 3.95cqi, 32px);
+  letter-spacing: 0.3px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.55);
+  transition: color 160ms ease, text-shadow 160ms ease, opacity 160ms ease;
+}
+
+.home-time-btn.is-active {
+  color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 0 10px rgba(255, 217, 120, 0.65);
+  opacity: 1;
+}
+
+.home-time-btn:hover {
+  color: rgba(255, 255, 255, 0.92);
+  opacity: 1;
+}
+
+/* PS 左上角 → 木桩内百分比：(数字坐标 - 木桩起点) / 木桩尺寸 */
+#time-15 {
+  left: 7.36%;
+  top: 42.27%;
+}
+#time-25 {
+  left: 27.26%;
+  top: 42.27%;
+}
+#time-30 {
+  left: 47.16%;
+  top: 42.27%;
+}
+#time-45 {
+  left: 66.69%;
+  top: 42.27%;
+}
+#time-60 {
+  left: 86.35%;
+  top: 42.27%;
+}
+
+/* 首页 - 启动按钮：W 198 | H 175 | X 615 | Y 616 */
+#btn-start {
+  width: 198px;
+  height: 175px;
+  left: 615px;
+  top: 616px;
+}
+
+/* 首页 - 草地邮箱：W 334 | H 329 | X 984 | Y 571 */
+#icon-mailbox {
+  width: 334px;
+  height: 329px;
+  left: 984px;
+  top: 571px;
+}
+
+/* 首页 - 统计胶囊背景：W 176 | H 84 | X 1196 | Y 27 */
+#mailbox-stats .stats-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  font-size: 14px;
+  line-height: 1.15;
+  text-align: center;
+  color: #4a3e3d;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+}
+
+/* 可访问性：仅屏幕阅读器可见 */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* =========================
+   禅定专注页（ZEN）
+   ========================= */
+
+.zen-timer {
+  position: absolute;
+  right: 42px;
+  top: 30px;
+  z-index: 3;
+  font-size: 32px;
+  letter-spacing: 1px;
+  color: rgba(240, 240, 240, 0.3);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* 叙事性通关视频播放期间屏蔽误触（倒计时归零 → go-home 播放） */
+body.is-story #zen-state::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  background: transparent;
+}
+
+/* =========================
+   成功结算弹窗（SUCCESS POPUP）
+   ========================= */
+
+#success-popup {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+}
+
+#success-popup[hidden] {
+  display: none !important;
+}
+
+.success-popup__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+/* 羊皮纸：W 722 | H 632 | X 376 | Y 94 */
+.success-paper {
+  position: absolute;
+  left: 376px;
+  top: 94px;
+  width: 722px;
+  height: 632px;
+  z-index: 13;
+  animation: fadeInSoft 1200ms ease both;
+}
+
+/* 羊皮纸内部排版铁律（任务 2.8） */
+.paper-content {
+  position: absolute;
+  inset: 0;
+  padding: 40px; /* 安全边距 */
+  font-family: "KaiTi", "楷体", var(--font-hand);
+  color: #4a3e3d;
+}
+
+.paper-salutation {
+  font-size: 28px;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.paper-body {
+  margin-top: 18px;
+  padding-left: 40px; /* 正文左缩进 */
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.paper-body p {
+  margin: 0 0 24px 0;
+  font-size: 32px;
+  line-height: 1.55;
+  text-align: left;
+  color: #4a3e3d;
+}
+
+.paper-sign {
+  position: absolute;
+  right: 40px;
+  bottom: 40px;
+  font-size: 28px;
+  line-height: 1.25;
+  text-align: right;
+  color: #4a3e3d;
+}
+
+/* 木质 X：W 80 | H 87 | X 1020 | Y 100 */
+.success-close {
+  position: absolute;
+  left: 1020px;
+  top: 100px;
+  width: 80px;
+  height: 87px;
+  z-index: 14;
+  animation: fadeInSoft 800ms ease both;
+}
+
+/* =========================
+   信箱页 - 单封信详情弹窗（与成功弹窗同规格）
+   ========================= */
+
+#letter-popup {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+}
+
+#letter-popup[hidden] {
+  display: none !important;
+}
+
+.letter-popup__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.letter-paper {
+  position: absolute;
+  left: 376px;
+  top: 94px;
+  width: 722px;
+  height: 632px;
+  z-index: 13;
+  animation: fadeInSoft 220ms ease both;
+}
+
+.letter-popup-close {
+  position: absolute;
+  left: 1020px;
+  top: 100px;
+  width: 80px;
+  height: 87px;
+  z-index: 14;
+  animation: fadeInSoft 220ms ease both;
+}
+
+@keyframes fadeInSoft {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 网页内全屏降级（Fullscreen API 失败时启用） */
+body.is-web-fullscreen #app {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+body.is-web-fullscreen .state {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+}
+
+/* =========================
+   信箱页（MAILBOX）像素级定位（arch.md 3）
+   ========================= */
+
+#mailbox-state {
+  background-image: url("assets/images/bg-mailbox-page.jpg");
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: var(--canvas-w) var(--canvas-h);
+}
+
+/* 信箱页 - 返回首页箭头：W 190 | H 111 | X 18 | Y 23 */
+#btn-back {
+  width: 190px;
+  height: 111px;
+  left: 18px;
+  top: 23px;
+}
+
+/* 信箱页 - 手账信件卡片背景：W 413 | H 458 | X 60 | Y 240 */
+#mailbox-letter-card {
+  width: 413px;
+  height: 458px;
+  left: 60px;
+  top: 240px;
+}
+
+.mailbox-letter-inner {
+  position: absolute;
+  left: 44px;
+  top: 56px;
+  width: calc(100% - 88px);
+  height: calc(100% - 110px);
+  overflow: hidden;
+}
+
+.mailbox-letter-list {
+  height: 100%;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.mailbox-letter-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 8px;
+  border-radius: 12px;
+  color: rgba(55, 41, 20, 0.82);
+  font-size: 16px;
+  line-height: 1.45;
+  background: rgba(255, 255, 255, 0.08);
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.mailbox-letter-item:hover {
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.mailbox-letter-item.is-active {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.mailbox-letter-item + .mailbox-letter-item {
+  margin-top: 8px;
+}
+
+.mailbox-letter-empty {
+  padding: 12px 6px;
+  color: rgba(55, 41, 20, 0.72);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+/* 信箱页 - 空白统计大看板：W 438 | H 461 | X 917 | Y 213 */
+#mailbox-panel-stats {
+  width: 438px;
+  height: 461px;
+  left: 917px;
+  top: 213px;
+  background-image: url("./assets/images/panel-stats.png");
+  background-repeat: no-repeat;
+  background-position: 0 0;
+  background-size: 100% 100%;
+}
+
+.panel-stats-data {
+  position: absolute;
+  left: 44px;
+  top: 36px;
+  width: calc(100% - 88px);
+  color: rgba(55, 41, 20, 0.92);
+  font-family: "KaiTi", "楷体", var(--font-hand);
+  pointer-events: none;
+}
+
+.panel-stats-title {
+  font-size: 18px;
+  letter-spacing: 0.3px;
+  color: rgba(55, 41, 20, 0.7);
+  margin-bottom: 10px;
+}
+
+.panel-stats-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.panel-stats-number {
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(55, 41, 20, 0.92);
+}
+
+.panel-stats-unit {
+  font-size: 16px;
+  color: rgba(55, 41, 20, 0.72);
+}
+
+.mailbox-reader {
+  position: absolute;
+  left: 52px;
+  top: 150px; /* 让出顶部累计统计区域，避免穿帮 */
+  width: calc(100% - 104px);
+  height: calc(100% - 206px);
+  overflow: auto;
+  color: rgba(55, 41, 20, 0.9);
+  font-size: 18px;
+  line-height: 1.85;
+}
+
+.mailbox-reader .reader-meta {
+  margin-bottom: 10px;
+  color: rgba(55, 41, 20, 0.68);
+  font-size: 14px;
+  letter-spacing: 0.2px;
+}
+
+.mailbox-reader p {
+  margin: 0 0 12px 0;
+}
+
+/* 信箱页 - 统计胶囊背景：复用同一套点位（home/mailbox） */
+#mailbox-stats {
+  width: 176px;
+  height: 84px;
+  left: 1196px;
+  top: 27px;
+}
+
+/* 滚动条美化/隐形（WebKit + Firefox） */
+.mailbox-letter-list,
+.mailbox-reader,
+.paper-body {
+  scrollbar-width: none;
+}
+
+.mailbox-letter-list::-webkit-scrollbar,
+.mailbox-reader::-webkit-scrollbar,
+.paper-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
