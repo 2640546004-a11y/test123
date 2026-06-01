@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>树洞自律小刺猬</title>
+
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript">本产品需要启用 JavaScript 才能正常运行。</div>
+    </noscript>
+
+    <!-- 多状态骨架（由 script.js 控制显隐与状态机切换） -->
+    <main id="app" aria-label="树洞自律小刺猬">
+      <!-- HOME：起跑仪式页（默认展示） -->
+      <section id="home-state" class="state" data-state="HOME">
+        <!-- 底层常驻全屏视频：HOME 默认循环 home-bg.mp4；进入 ZEN 后无缝切换为 start-run / running-loop -->
+        <video
+          id="bg-video"
+          class="bg-video"
+          muted
+          autoplay
+          loop
+          playsinline
+          webkit-playsinline
+          preload="auto"
+          poster="assets/images/poster-home.jpg"
+          aria-hidden="true"
+        ></video>
+
+        <!-- 顶部时间轴（画布锚点 + 木桩相对容器 + 数字百分比定位） -->
+        <div class="ui ui-timeline-anchor">
+          <div id="home-timeline" class="timeline-container" aria-label="选择专注时长（分钟）">
+            <img class="timeline-container__bg" src="assets/images/bg-timeline.png" alt="" />
+            <div class="home-time-buttons" role="group" aria-label="专注时长（分钟）">
+            <button id="time-15" class="home-time-btn" type="button" data-minutes="15">15</button>
+            <button id="time-25" class="home-time-btn is-active" type="button" data-minutes="25">25</button>
+            <button id="time-30" class="home-time-btn" type="button" data-minutes="30">30</button>
+            <button id="time-45" class="home-time-btn" type="button" data-minutes="45">45</button>
+            <button id="time-60" class="home-time-btn" type="button" data-minutes="60">60</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- START：正下方启动按钮 -->
+        <button id="btn-start" class="ui ui-start" type="button" aria-label="开始专注">
+          <img src="assets/images/btn-start.png" alt="START" />
+        </button>
+
+        <!-- 右下角草地邮箱入口 -->
+        <button id="icon-mailbox" class="ui ui-mailbox" type="button" aria-label="打开我的信箱">
+          <img src="assets/images/icon-mailbox.png" alt="" />
+        </button>
+      </section>
+
+      <!-- ZEN：禅定专注页 -->
+      <section id="zen-state" class="state" data-state="ZEN">
+        <div id="zen-timer" class="zen-timer" aria-label="倒计时">25:00</div>
+
+        <!-- 成功结算弹窗（默认隐藏） -->
+        <section
+          id="success-popup"
+          class="success-popup"
+          role="dialog"
+          aria-modal="true"
+          aria-label="专注成功"
+          hidden
+        >
+          <div class="success-popup__backdrop" aria-hidden="true"></div>
+
+          <!-- 羊皮纸：W 722 | H 632 | X 376 | Y 94 -->
+          <div class="success-paper" aria-label="手写信">
+            <img src="assets/images/paper-texture.png" alt="" />
+            <div class="paper-content" aria-live="polite">
+              <div class="paper-salutation">亲爱的自律之星:</div>
+              <div id="success-letter-body" class="paper-body"></div>
+              <div class="paper-sign">森林精灵敬上</div>
+            </div>
+          </div>
+
+          <!-- 木质 X：W 80 | H 87 | X 1020 | Y 100 -->
+          <button id="success-close" class="success-close" type="button" aria-label="关闭">
+            <img src="assets/images/icon-close.png" alt="" />
+          </button>
+        </section>
+      </section>
+
+      <!-- MAILBOX：我的信箱页 -->
+      <section id="mailbox-state" class="state" data-state="MAILBOX" aria-label="我的信箱">
+        <!-- 右上角叶子统计 icon（仅信箱页可见） -->
+        <div id="mailbox-stats" class="ui ui-stats" aria-label="信件收集统计">
+          <img src="assets/images/bg-stats.png" alt="" />
+          <div class="stats-text" aria-hidden="true">已收集 0 封信</div>
+        </div>
+
+        <!-- 返回首页箭头 -->
+        <button id="btn-back" class="ui ui-back" type="button" aria-label="返回首页">
+          <img src="assets/images/btn-back.png" alt="" />
+        </button>
+
+        <!-- 手账信件卡片背景（信件内容渲染于其上） -->
+        <div id="mailbox-letter-card" class="ui mailbox-letter-card" aria-label="手账信件">
+          <img src="assets/images/card-letter-bg.png" alt="" />
+          <div class="mailbox-letter-inner">
+            <div id="mailbox-letter-list" class="mailbox-letter-list" role="list" aria-label="信件列表"></div>
+          </div>
+        </div>
+
+        <!-- 统计看板（panel-stats.png 作为背景图，叠加累计数据 + 阅读区） -->
+        <div id="mailbox-panel-stats" class="ui mailbox-panel-stats" aria-label="统计看板">
+          <div class="panel-stats-data" aria-hidden="true">
+            <div class="panel-stats-title">累计统计</div>
+            <div class="panel-stats-line">
+              <span id="panel-letters-count" class="panel-stats-number">0</span>
+              <span class="panel-stats-unit">封信</span>
+            </div>
+            <div class="panel-stats-line">
+              <span id="panel-focus-minutes" class="panel-stats-number">0</span>
+              <span class="panel-stats-unit">分钟</span>
+            </div>
+          </div>
+          <div id="mailbox-reader" class="mailbox-reader" aria-live="polite" aria-label="信件正文"></div>
+        </div>
+
+        <!-- 单封手写信详情弹窗（默认隐藏；关闭后必须返回信箱页并保留滚动位置） -->
+        <section
+          id="letter-popup"
+          class="letter-popup"
+          role="dialog"
+          aria-modal="true"
+          aria-label="信件详情"
+          hidden
+        >
+          <div class="letter-popup__backdrop" aria-hidden="true"></div>
+
+          <div class="letter-paper" aria-label="手写信">
+            <img src="assets/images/paper-texture.png" alt="" />
+            <div class="paper-content" aria-live="polite">
+              <div class="paper-salutation">亲爱的自律之星:</div>
+              <div id="letter-popup-body" class="paper-body"></div>
+              <div class="paper-sign">森林精灵敬上</div>
+            </div>
+          </div>
+
+          <button id="letter-popup-close" class="letter-popup-close" type="button" aria-label="关闭">
+            <img src="assets/images/icon-close.png" alt="" />
+          </button>
+        </section>
+      </section>
+    </main>
+
+    <!-- 全局音频：音量强制锁死 25%（由 script.js 统一控制） -->
+    <audio id="home-bgm" preload="metadata" loop></audio>
+    <audio id="zen-bgm" preload="metadata" loop></audio>
+    <audio id="click-sfx" preload="auto"></audio>
+
+    <script>
+      // 基础防御：若视频资源加载失败，启用森林绿后备底色（PRD 5.1）
+      (() => {
+        const video = document.getElementById("bg-video");
+        if (!video) return;
+        video.addEventListener("error", () => {
+          document.documentElement.classList.add("video-error");
+        });
+      })();
+    </script>
+    <script src="./script.js" defer></script>
+  </body>
+</html>
